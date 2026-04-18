@@ -155,8 +155,7 @@ def phase(row):
 
 def top_driver(row):
     key = max(cols, key=lambda x: row[x])
-    return key.replace("_score",""
-).capitalize()
+    return key.replace("_score", "").capitalize()
 
 
 def confidence(row):
