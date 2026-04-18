@@ -13,32 +13,77 @@ st.set_page_config(page_title="Hype Radar", layout="wide")
 # -----------------------------
 st.markdown("""
 <style>
-body {
+
+/* Force readable text */
+html, body, [class*="css"] {
+    color: #222 !important;
+}
+
+/* Background */
+.stApp {
     background: linear-gradient(-45deg, #fde2e4, #e2f0cb, #cdb4db, #a0e7e5);
     background-size: 400% 400%;
     animation: gradient 12s ease infinite;
 }
+
+/* Animation */
 @keyframes gradient {
     0% {background-position: 0% 50%;}
     50% {background-position: 100% 50%;}
     100% {background-position: 0% 50%;}
 }
-.title { text-align:center; font-size:52px; font-weight:800; color:#ff6b9a; }
-.card { background:rgba(255,255,255,0.88); backdrop-filter:blur(12px); padding:20px; border-radius:20px; margin:15px 0; box-shadow:0 10px 25px rgba(0,0,0,0.08); }
 
-/* Recommendation Colors */
+/* Title */
+.title {
+    text-align:center;
+    font-size:52px;
+    font-weight:800;
+    color:#ff4d88 !important;
+}
+
+/* Cards */
+.card {
+    background: rgba(255,255,255,0.95);
+    color: #222 !important;
+    padding:20px;
+    border-radius:20px;
+    margin:15px 0;
+    box-shadow:0 10px 25px rgba(0,0,0,0.1);
+}
+
+/* Recommendation colors */
 .rec-buy { background:#d4edda; border-left:6px solid #28a745; }
 .rec-emerging { background:#d0ebff; border-left:6px solid #339af0; }
 .rec-watch { background:#fff3cd; border-left:6px solid #ffc107; }
 .rec-overhyped { background:#ffe5d9; border-left:6px solid #ff922b; }
 .rec-avoid { background:#f8d7da; border-left:6px solid #dc3545; }
 
-.tag { display:inline-block; padding:6px 12px; border-radius:12px; margin:5px; font-size:14px; }
+/* Tags */
+.tag {
+    display:inline-block;
+    padding:6px 12px;
+    border-radius:12px;
+    margin:5px;
+    font-size:14px;
+    color:#222 !important;
+}
+
 .trends { background:#ffd6e0; }
 .reddit { background:#d0f4de; }
 .youtube { background:#fff3b0; }
 .news { background:#cdb4db; }
-.badge { display:inline-block; padding:6px 10px; border-radius:999px; margin-right:8px; font-size:12px; background:#f1f3f5; }
+
+/* Badge */
+.badge {
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    margin-right:8px;
+    font-size:12px;
+    background:#f1f3f5;
+    color:#222 !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
