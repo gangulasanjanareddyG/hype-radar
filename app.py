@@ -9,7 +9,7 @@ import numpy as np
 st.set_page_config(page_title="Hype Radar", layout="wide")
 
 # -----------------------------
-# 🌈 UI
+# 🌈 UI (FIXED)
 # -----------------------------
 st.markdown("""
 <style>
@@ -34,6 +34,217 @@ html, body, [class*="css"] { color: #222 !important; }
     font-weight:800;
     color:#ff4d88 !important;
 }
+
+.card {
+    background: rgba(255,255,255,0.95);
+    padding:20px;
+    border-radius:20px;
+    margin:15px 0;
+    box-shadow:0 10px 25px rgba(0,0,0,0.1);
+}
+
+.rec-buy { background:#d4edda; border-left:6px solid #28a745; }
+.rec-emerging { background:#d0ebff; border-left:6px solid #339af0; }
+.rec-watch { background:#fff3cd; border-left:6px solid #ffc107; }
+.rec-overhyped { background:#ffe5d9; border-left:6px solid #ff922b; }
+.rec-avoid { background:#f8d7da; border-left:6px solid #dc3545; }
+
+.tag {
+    display:inline-block;
+    padding:6px 12px;
+    border-radius:12px;
+    margin:5px;
+    font-size:14px;
+}
+
+.trends { background:#ffd6e0; }
+.reddit { background:#d0f4de; }
+.youtube { background:#fff3b0; }
+.news { background:#cdb4db; }
+
+.badge {
+    display:inline-block;
+    padding:6px 10px;
+    border-radius:999px;
+    margin-right:8px;
+    font-size:12px;
+    background:#f1f3f5;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------
+# LOAD DATA
+# -----------------------------
+df = pd.read_csv("enhanced_data.csv")
+
+# -----------------------------
+# HYPE SCORE
+# -----------------------------
+cols = ["trends_score", "reddit_score", "youtube_score", "news_score"]
+
+df_z = df.copy()
+for col in cols:
+    df_z[col] = (df[col] - df[col].mean()) / df[col].std()
+
+df_scaled = df_z.copy()
+for col in cols:
+    df_scaled[col] = 100 * (df_z[col] - df_z[col].min()) / (df_z[col].max() - df_z[col].min())
+
+weights = {"trends_score":0.25, "reddit_score":0.20, "youtube_score":0.30, "news_score":0.25}
+
+df_scaled["hype_score"] = sum(df_scaled[c]*w for c,w in weights.items())
+
+df_scaled["consistency_std"] = df_scaled[cols].std(axis=1)
+
+df_scaled["consistency_score"] = 100 * (1 - (df_scaled["consistency_std"] - df_scaled["consistency_std"].min()) /(df_scaled["consistency_std"].max() - df_scaled["consistency_std"].min()))
+
+df_scaled["hype_score_adjusted"] = df_scaled["hype_score"]*0.90 + df_scaled["consistency_score"]*0.10
+
+df = df_scaled
+
+df["final_score"] = 0.7*df["hype_score_adjusted"] + 0.3*df["momentum_score"]
+
+# -----------------------------
+# CONTEXT
+# -----------------------------
+def get_context(product):
+    context_map = {
+        "iPhone 17": "Apple released the iPhone 17 around September 2025, creating a spike in attention. Now interest is settling as users wait for the next cycle.",
+        "PS5 Pro": "Interest is driven by leaks, rumors, and performance expectations ahead of release.",
+        "Air Jordan 11": "Follows a drop-driven hype cycle with spikes at releases and restocks.",
+        "Owala FreeSip": "Gaining popularity through social media and everyday usage content.",
+        "Nvidia RTX 5090": "Pre-launch hype driven by leaks, benchmarks, and tech speculation."
+    }
+    return context_map.get(product, "No major external drivers right now.")
+
+# -----------------------------
+# HELPERS (FIXED)
+# -----------------------------
+def predict_label(row):
+    if row["momentum_score"] > 65:
+        return "🌱 Expected to grow"
+    elif row["momentum_score"] < 35:
+        return "📉 Losing momentum"
+    return "➖ Likely stable"
+
+
+def phase(row):
+    if row["momentum_score"] > 70:
+        return "🚀 Growth phase"
+    elif row["momentum_score"] < 30:
+        return "🧊 Decline phase"
+    return "⚖️ Stable phase"
+
+
+def top_driver(row):
+    key = max(cols, key=lambda x: row[x])
+    return key.replace("_score", "").capitalize()
+
+
+def confidence(row):
+    spread = row[cols].std()
+    if spread < 10:
+        return "High"
+    elif spread < 20:
+        return "Medium"
+    return "Low"
+
+
+def recommendation(row):
+    hype = row["hype_score_adjusted"]
+    momentum = row["momentum_score"]
+
+    if momentum > 65:
+        return "🚀 Buy Now", "Strong upward momentum → gaining popularity fast."
+    elif momentum > 55:
+        return "📈 Emerging", "Momentum is building → early growth stage."
+    elif 40 <= momentum <= 55:
+        return "👀 Watch Closely", "Stable interest → could go either way."
+    elif momentum < 40 and hype > 55:
+        return "⚠️ Overhyped", "Hype exists but interest is fading."
+    else:
+        return "❌ Avoid", "Low interest and weak momentum."
+
+
+def rec_class(label):
+    if "Buy" in label:
+        return "rec-buy"
+    elif "Emerging" in label:
+        return "rec-emerging"
+    elif "Watch" in label:
+        return "rec-watch"
+    elif "Overhyped" in label:
+        return "rec-overhyped"
+    return "rec-avoid"
+
+
+def human_explanation(row, product):
+    rec, _ = recommendation(row)
+    real = get_context(product)
+
+    if "Buy" in rec:
+        return f"{product} is gaining strong attention. {real} This usually happens before something takes off."
+    elif "Emerging" in rec:
+        return f"{product} is building momentum. {real} Interest is growing steadily."
+    elif "Watch" in rec:
+        return f"{product} is stable right now. {real} It could move either way."
+    elif "Overhyped" in rec:
+        return f"{product} had strong attention earlier. {real} Now it's slowing down."
+    else:
+        return f"{product} has low attention. {real}"
+
+
+def generate_insight(row, product):
+    driver = top_driver(row)
+    real = get_context(product)
+
+    if row["momentum_score"] > 65:
+        trend = "Interest is rising"
+    elif row["momentum_score"] < 35:
+        trend = "Interest is declining"
+    else:
+        trend = "Interest is stable"
+
+    return f"{trend} for {product}, driven mainly by {driver.lower()}. {real}"
+
+
+def forecast(series, steps=5):
+    y = series.values
+    x = np.arange(len(y))
+    coef = np.polyfit(x, y, 1)
+    future_x = np.arange(len(y), len(y)+steps)
+    return coef[0]*future_x + coef[1]
+
+# -----------------------------
+# APP
+# -----------------------------
+st.markdown('<div class="title">🌈 Hype Radar</div>', unsafe_allow_html=True)
+
+selected = st.selectbox("Pick a product ✨", df["product"])
+row = df[df["product"]==selected].iloc[0]
+
+st.markdown(f"""
+<div class='card'>
+<h2>{selected}</h2>
+<p>🔥 Hype: {round(row['hype_score_adjusted'],1)} | ⚡ Momentum: {round(row['momentum_score'],1)}</p>
+<p>{predict_label(row)}</p>
+<p class='badge'>{phase(row)}</p>
+</div>
+""", unsafe_allow_html=True)
+
+st.subheader("🧭 Recommendation")
+rec, reason = recommendation(row)
+st.markdown(f"<div class='card {rec_class(rec)}'><h3>{rec}</h3><p>{reason}</p><p>{human_explanation(row, selected)}</p></div>", unsafe_allow_html=True)
+
+st.subheader("🧠 Insight")
+st.markdown(f"<div class='card'>{generate_insight(row, selected)}</div>", unsafe_allow_html=True)
+
+st.subheader("📈 Trend")
+trends = pd.read_csv("google_trends.csv")
+fig = px.line(trends, x="date", y=selected)
+st.plotly_chart(fig, use_container_width=True)
 
 .card {
     background: rgba(255,255,255,0.95);
